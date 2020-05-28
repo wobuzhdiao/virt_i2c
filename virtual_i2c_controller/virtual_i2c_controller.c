@@ -85,7 +85,7 @@ static int virtual_i2c_adapter_platform_probe(struct platform_device *platform_d
     virtual_i2c_bus_t *virtual_i2c_bus_ptr = NULL;
 
 
-    virtual_i2c_bus_ptr = kzalloc(sizeof(virtual_i2c_bus_t), GFP_KERNEL);
+    virtual_i2c_bus_ptr = devm_kzalloc(&platform_dev->dev, sizeof(virtual_i2c_bus_t), GFP_KERNEL);
     if (!virtual_i2c_bus_ptr) 
     {
         printk("%s(): unable to alloc i2c adapter \n", __func__);
@@ -95,6 +95,13 @@ static int virtual_i2c_adapter_platform_probe(struct platform_device *platform_d
     virtual_i2c_bus_ptr->adapter.owner = THIS_MODULE;
     memcpy(virtual_i2c_bus_ptr->adapter.name, "virtual_i2c_adapter", sizeof(virtual_i2c_bus_ptr->adapter.name));
     virtual_i2c_bus_ptr->adapter.algo = &virtual_i2c_algo;
+    virtual_i2c_bus_ptr->adapter.class = I2C_CLASS_HWMON;
+    virtual_i2c_bus_ptr->adapter.dev.parent = &platform_dev->dev;
+#ifdef CONFIG_OF
+    virtual_i2c_bus_ptr->adapter.dev.of_node = of_node_get(platform_dev->dev.of_node);
+#endif
+
+
     INIT_LIST_HEAD(&virtual_i2c_bus_ptr->virtual_dev_info.list);
     
     mutex_init(&virtual_i2c_bus_ptr->virtual_dev_info.virtual_i2c_mutex);
@@ -113,7 +120,7 @@ static int virtual_i2c_adapter_platform_probe(struct platform_device *platform_d
     }
     else
     {
-        virtual_i2c_dev_info_t *virtual_devp = kzalloc(sizeof(virtual_i2c_dev_info_t), GFP_KERNEL);
+        virtual_i2c_dev_info_t *virtual_devp = devm_kzalloc(&platform_dev->dev, sizeof(virtual_i2c_dev_info_t), GFP_KERNEL);
         if(NULL == virtual_devp)
         {
             i2c_unregister_device(i2c_dev);
@@ -132,9 +139,12 @@ static int virtual_i2c_adapter_platform_probe(struct platform_device *platform_d
 
 static int virtual_i2c_adapter_platform_remove(struct platform_device *platform_dev)
 {
-    struct i2c_adapter	*i2c_adapter_ptr = platform_get_drvdata(platform_dev);
+    virtual_i2c_bus_t *virtual_i2c_bus_ptr = platform_get_drvdata(platform_dev);
 
-    i2c_del_adapter(i2c_adapter_ptr);
+
+    printk("%s:%d\n", __FUNCTION__, __LINE__);
+
+    i2c_del_adapter(&virtual_i2c_bus_ptr->adapter);
     printk("%s:%d\n", __FUNCTION__, __LINE__);
     return 0;
 }
