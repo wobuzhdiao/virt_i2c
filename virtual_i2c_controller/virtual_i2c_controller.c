@@ -20,7 +20,6 @@ static struct platform_device gvirtual_i2c_master_platform_device = {
 
 static int virtual_i2c_master_xfer (struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
-    int ret = 0;
     int i = 0;
     virtual_i2c_bus_t *virtual_i2c_bus_ptr = container_of(adap, virtual_i2c_bus_t, adapter);
     virtual_i2c_dev_info_t *vir_i2c_dev_infop = NULL;
@@ -29,8 +28,6 @@ static int virtual_i2c_master_xfer (struct i2c_adapter *adap, struct i2c_msg *ms
     for(i = 0; i < num; i++)
     {
         /*reg:8bits value:16bits*/
-        if(msgs[i].len < 3)
-            return -EINVAL;
         list_for_each_entry(vir_i2c_dev_infop, &(virtual_i2c_bus_ptr->virtual_dev_info.list), node)
         {
             if(vir_i2c_dev_infop->addr == msgs[i].addr)
@@ -38,11 +35,13 @@ static int virtual_i2c_master_xfer (struct i2c_adapter *adap, struct i2c_msg *ms
                 if(msgs[i].flags &I2C_M_RD)
                 {
                     /*read...*/
-                    reg_addr = msgs[i].buf[0];
-                    if(reg_addr >= VIRTUAL_I2C_DEV_REGS_NUM)
+					if(msgs[i].len == 2)
+					{
+						msgs[i].buf[0] = vir_i2c_dev_infop->regs[vir_i2c_dev_infop->current_reg_addr]>>8;
+						msgs[i].buf[1] = vir_i2c_dev_infop->regs[vir_i2c_dev_infop->current_reg_addr]&0x00FF;
+					}
+					else
                         return -EINVAL;
-                    msgs[i].buf[1] = vir_i2c_dev_infop->regs[reg_addr]>>8;
-                    msgs[i].buf[2] = vir_i2c_dev_infop->regs[reg_addr]&0x00FF;
                 }
                 else
                 {
@@ -50,14 +49,16 @@ static int virtual_i2c_master_xfer (struct i2c_adapter *adap, struct i2c_msg *ms
                     reg_addr = msgs[i].buf[0];
                     if(reg_addr >= VIRTUAL_I2C_DEV_REGS_NUM)
                         return -EINVAL;
-                    vir_i2c_dev_infop->regs[reg_addr] = msgs[i].buf[1]<<8 |msgs[i].buf[2];
+					vir_i2c_dev_infop->current_reg_addr = reg_addr;
+					if(msgs[i].len >= 3)
+	                    vir_i2c_dev_infop->regs[reg_addr] = msgs[i].buf[1]<<8 |msgs[i].buf[2];
                 }
             }
         }
 
     }
 
-    return ret;
+    return num;
 }
 
 static u32 virtual_i2c_functionality (struct i2c_adapter * adap)

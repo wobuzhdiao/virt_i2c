@@ -44,6 +44,7 @@ typedef struct virtual_i2c_dev_info_s
 {
     struct list_head node;
     int addr;
+    int current_reg_addr;
     u16 regs[VIRTUAL_I2C_DEV_REGS_NUM];
 }virtual_i2c_dev_info_t;
 
